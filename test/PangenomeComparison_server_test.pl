@@ -40,12 +40,20 @@ eval {
 				  [{type => 'KBaseGenomes.Genome', name => $obj_name, data => $obj}, {type => 'KBaseGenomes.Genome', name => $obj_name2, data => $obj}]});
     eval { 
 	my $ret = $impl->build_pangenome({workspace=>get_ws_name(), output_id=>"pg.1", genome_refs=>[get_ws_name()."/".$obj_name,get_ws_name()."/".$obj_name2]});
-	use Data::Dumper;
-	print &Dumper($ret);
     };
     if ($@) {
-	print("Error while running build_pangenome: $@\n");
+	print("Error while running build_pangenome on two genomes: $@\n");
     }
+    my $mset = {description => "mset", elements => {param0 => {ref => get_ws_name()."/".$obj_name}, param1 => {ref => get_ws_name()."/".$obj_name2}}};
+    $ws_client->save_objects({workspace => get_ws_name(), objects =>
+				  [{type => 'KBaseSearch.GenomeSet', name => "mset", data => $mset}]});
+    eval { 
+	my $ret = $impl->build_pangenome({workspace=>get_ws_name(), output_id=>"pg.1", genomeset_ref=>get_ws_name()."/mset"});
+    };
+    if ($@) {
+	print("Error while running build_pangenome on genomeset: $@\n");
+    }
+
     done_testing(0);
 };
 my $err = undef;

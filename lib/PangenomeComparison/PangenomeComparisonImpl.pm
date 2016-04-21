@@ -171,6 +171,7 @@ sub build_pangenome
     	my $bestorthos = [];
 	my $currgenome = undef;
 	eval {
+	    print STDERR "Getting object from workspace with ref $currgenome_ref\n";
 	    my $obj = $wsClient->get_objects([{ref=>$currgenome_ref}])->[0];
 	    $currgenome_ref = $obj->{info}->[6]."/".$obj->{info}->[0]."/".$obj->{info}->[4]; # widget needs this kind of ref
 	    $currgenome=$obj->{data};
