@@ -148,6 +148,7 @@ sub build_pangenome
     }
     if (defined $input->{genome_refs}) {
 	    foreach my $ref (@{$input->{genome_refs}}) {
+		next if ! defined $ref;
 		push @genomes, $ref;
 		push @{$provenance->[0]->{'input_ws_objects'}}, $ref;
 	    }
