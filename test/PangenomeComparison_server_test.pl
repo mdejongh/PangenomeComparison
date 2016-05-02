@@ -29,31 +29,60 @@ sub get_ws_name {
 }
 
 eval {
-    my $obj_name = "genome.1";
-    my $obj_name2 = "genome.2";
-    my $contig1 = {id => '1', length => 10, md5 => 'md5', sequence => 'agcttttcat'};
-    my $contig2 = {id => '2', length => 5, md5 => 'md5', sequence => 'agctt'};
-    my $contig3 = {id => '3', length => 12, md5 => 'md5', sequence => 'agcttttcatgg'};
-    my $obj = {contigs => [$contig1,$contig2,$contig3], id => 'id', md5 => 'md5',
-            name => 'name', source => 'source', source_id => 'source_id', type => 'type', "scientific_name" => 'Scientific name', "domain" => "Bacteria", "genetic_code" => 1, "features" => [{"id"=>"ftr1","protein_translation"=>"abcdefghijklmnop","type"=>"CDS"}]};
-    $ws_client->save_objects({workspace => get_ws_name(), objects =>
-				  [{type => 'KBaseGenomes.Genome', name => $obj_name, data => $obj}, {type => 'KBaseGenomes.Genome', name => $obj_name2, data => $obj}]});
-    eval { 
-	my $ret = $impl->build_pangenome({workspace=>get_ws_name(), output_id=>"pg.1", genome_refs=>[get_ws_name()."/".$obj_name,get_ws_name()."/".$obj_name2]});
-    };
-    if ($@) {
-	print("Error while running build_pangenome on two genomes: $@\n");
-    }
-    my $mset = {description => "mset", elements => {param0 => {ref => get_ws_name()."/".$obj_name}, param1 => {ref => get_ws_name()."/".$obj_name2}}};
-    $ws_client->save_objects({workspace => get_ws_name(), objects =>
-				  [{type => 'KBaseSearch.GenomeSet', name => "mset", data => $mset}]});
-    eval { 
-	my $ret = $impl->build_pangenome({workspace=>get_ws_name(), output_id=>"pg.1", genomeset_ref=>get_ws_name()."/mset"});
-    };
-    if ($@) {
-	print("Error while running build_pangenome on genomeset: $@\n");
-    }
+	print STDERR "Loading genome and contigs ...\n";
+	
+        my $mg_contigs = "kb|g.490.c.0";
+	open (CONTIG, "kb_g.490.contigset.json");
+        my $obj = <CONTIG>;
+	chomp $obj;
+	close CONTIG;
+	my $decoded = JSON::XS::decode_json($obj);
+        $ws_client->save_objects({'workspace' => get_ws_name(), 'objects' => [{'type' => 'KBaseGenomes.ContigSet', 'name' => $mg_contigs, 'data' => $decoded}]});
 
+	my $mg_genome = "Mg";
+	open (GENOME, "Mycoplasma_genitalium_G_37.json");
+        my $obj2 = <GENOME>;
+	chomp $obj2;
+	close GENOME;
+	my $decoded2 = JSON::XS::decode_json($obj2);
+	$decoded2->{"contigset_ref"} = get_ws_name()."/".$mg_contigs;
+        $ws_client->save_objects({'workspace' => get_ws_name(), 'objects' => [{'type' => 'KBaseGenomes.Genome', 'name' => $mg_genome, 'data' => $decoded2}]});
+
+        my $mp_contigs = "kb|g.20403.c.0";
+	open (CONTIG, "kb_g.20403.contigset.json");
+        my $obj3 = <CONTIG>;
+	chomp $obj3;
+	close CONTIG;
+	my $decoded = JSON::XS::decode_json($obj3);
+        $ws_client->save_objects({'workspace' => get_ws_name(), 'objects' => [{'type' => 'KBaseGenomes.ContigSet', 'name' => $mp_contigs, 'data' => $decoded}]});
+
+	my $mp_genome = "Mp";
+	open (GENOME, "Mycoplasma_pneumoniae_M129.json");
+        my $obj4 = <GENOME>;
+	chomp $obj4;
+	close GENOME;
+	my $decoded2 = JSON::XS::decode_json($obj4);
+	$decoded2->{"contigset_ref"} = get_ws_name()."/".$mp_contigs;
+        $ws_client->save_objects({'workspace' => get_ws_name(), 'objects' => [{'type' => 'KBaseGenomes.Genome', 'name' => $mp_genome, 'data' => $decoded2}]});
+
+	print STDERR "Getting ready ...\n";
+
+    eval { 
+	my $ret = $impl->build_pangenome({workspace=>get_ws_name(), output_id=>"pg.1", genome_refs=>[get_ws_name()."/".$mg_genome,get_ws_name()."/".$mp_genome]});
+	use Data::Dumper;
+	print &Dumper($ret);
+    };
+    if ($@) {
+	print("Error while running build_pangenome: $@\n");
+    }
+    eval { 
+	my $ret = $impl->compare_genomes({workspace=>get_ws_name(), output_id=>"gc.1", pangenome_ref=>get_ws_name()."/pg.1"});
+	use Data::Dumper;
+	print &Dumper($ret);
+    };
+    if ($@) {
+	print("Error while running compare_genomes: $@\n");
+    }
     done_testing(0);
 };
 my $err = undef;

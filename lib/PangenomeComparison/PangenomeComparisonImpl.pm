@@ -850,8 +850,6 @@ sub compare_genomes
 	$gc->{families}->[$famind->{$fam}] = $families->{$fam};
     }
 
-    print STDERR &Dumper($gc);
-
     my $gc_metadata = $wsClient->save_objects({
 	'workspace' => $workspace_name,
 	'objects' => [{
