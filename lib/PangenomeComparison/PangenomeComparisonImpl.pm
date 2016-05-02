@@ -146,15 +146,17 @@ sub build_pangenome
     if ($@) {
 	die "Error loading genomeset from workspace:\n".$@;
     }
-    if (defined $input->{genome_refs} && @{$input->{genome_refs}} > 0) {
+    if (defined $input->{genome_refs}) {
 	eval {
 	    my @refs;
 	    foreach my $ref (@{$input->{genome_refs}}) {
-		next if $ref eq ""; # widget does this is 1st genome input is left blank
+		next if $ref eq ""; # widget does this if 1st genome input is left blank
 		push @refs, {ref=>$ref};
 	    }
-	    my $genomeset_full=$wsClient->get_object_info_new({objects=>\@refs, includeMetadata=>1});
-	    map { push @genomes, $_->[6]."/".$_->[0]."/".$_->[4] } @$genomeset_full;
+	    if (@refs > 0) {
+		my $genomeset_full=$wsClient->get_object_info_new({objects=>\@refs, includeMetadata=>1});
+		map { push @genomes, $_->[6]."/".$_->[0]."/".$_->[4] } @$genomeset_full;
+	    }
 	};
     }
     if ($@) {
