@@ -151,6 +151,7 @@ sub build_pangenome
 	    my @refs;
 	    foreach my $ref (@{$input->{genome_refs}}) {
 		push @refs, {ref=>$ref};
+		print STDERR "Genome ref is $ref\n";
 	    }
 	    my $genomeset_full=$wsClient->get_object_info_new({objects=>\@refs, includeMetadata=>1});
 	    map { push @genomes, $_->[6]."/".$_->[0]."/".$_->[4] } @$genomeset_full;
