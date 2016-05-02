@@ -146,7 +146,7 @@ sub build_pangenome
     if ($@) {
 	die "Error loading genomeset from workspace:\n".$@;
     }
-    if (defined $input->{genome_refs}) {
+    if (defined $input->{genome_refs} && @{$input->{genome_refs}} > 0) {
 	eval {
 	    my @refs;
 	    foreach my $ref (@{$input->{genome_refs}}) {
