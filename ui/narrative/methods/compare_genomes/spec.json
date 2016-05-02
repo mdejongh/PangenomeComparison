@@ -49,10 +49,6 @@
         {
           "narrative_system_variable": "workspace",
           "target_property": "workspace"
-        },
-        {
-          "narrative_system_variable": "workspace",
-          "target_property": "pangenome_ws"
         }
       ],
       "output_mapping" : [

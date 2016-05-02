@@ -20,10 +20,8 @@ module PangenomeComparison {
     funcdef build_pangenome(BuildPangenomeParams input) returns (BuildPangenomeResult) authentication required;
 
     typedef structure {
-	string pangenome_id;
-	string pangenome_ws;
-	string protcomp_id;
-	string protcomp_ws;
+	string pangenome_ref;
+	string protcomp_ref;
 	string output_id;
 	string workspace;
     } CompareGenomesParams;

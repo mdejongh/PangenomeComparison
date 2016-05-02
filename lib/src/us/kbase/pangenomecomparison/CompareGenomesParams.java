@@ -19,86 +19,50 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Generated("com.googlecode.jsonschema2pojo")
 @JsonPropertyOrder({
-    "pangenome_id",
-    "pangenome_ws",
-    "protcomp_id",
-    "protcomp_ws",
+    "pangenome_ref",
+    "protcomp_ref",
     "output_id",
     "workspace"
 })
 public class CompareGenomesParams {
 
-    @JsonProperty("pangenome_id")
-    private String pangenomeId;
-    @JsonProperty("pangenome_ws")
-    private String pangenomeWs;
-    @JsonProperty("protcomp_id")
-    private String protcompId;
-    @JsonProperty("protcomp_ws")
-    private String protcompWs;
+    @JsonProperty("pangenome_ref")
+    private String pangenomeRef;
+    @JsonProperty("protcomp_ref")
+    private String protcompRef;
     @JsonProperty("output_id")
     private String outputId;
     @JsonProperty("workspace")
     private String workspace;
     private Map<String, Object> additionalProperties = new HashMap<String, Object>();
 
-    @JsonProperty("pangenome_id")
-    public String getPangenomeId() {
-        return pangenomeId;
+    @JsonProperty("pangenome_ref")
+    public String getPangenomeRef() {
+        return pangenomeRef;
     }
 
-    @JsonProperty("pangenome_id")
-    public void setPangenomeId(String pangenomeId) {
-        this.pangenomeId = pangenomeId;
+    @JsonProperty("pangenome_ref")
+    public void setPangenomeRef(String pangenomeRef) {
+        this.pangenomeRef = pangenomeRef;
     }
 
-    public CompareGenomesParams withPangenomeId(String pangenomeId) {
-        this.pangenomeId = pangenomeId;
+    public CompareGenomesParams withPangenomeRef(String pangenomeRef) {
+        this.pangenomeRef = pangenomeRef;
         return this;
     }
 
-    @JsonProperty("pangenome_ws")
-    public String getPangenomeWs() {
-        return pangenomeWs;
+    @JsonProperty("protcomp_ref")
+    public String getProtcompRef() {
+        return protcompRef;
     }
 
-    @JsonProperty("pangenome_ws")
-    public void setPangenomeWs(String pangenomeWs) {
-        this.pangenomeWs = pangenomeWs;
+    @JsonProperty("protcomp_ref")
+    public void setProtcompRef(String protcompRef) {
+        this.protcompRef = protcompRef;
     }
 
-    public CompareGenomesParams withPangenomeWs(String pangenomeWs) {
-        this.pangenomeWs = pangenomeWs;
-        return this;
-    }
-
-    @JsonProperty("protcomp_id")
-    public String getProtcompId() {
-        return protcompId;
-    }
-
-    @JsonProperty("protcomp_id")
-    public void setProtcompId(String protcompId) {
-        this.protcompId = protcompId;
-    }
-
-    public CompareGenomesParams withProtcompId(String protcompId) {
-        this.protcompId = protcompId;
-        return this;
-    }
-
-    @JsonProperty("protcomp_ws")
-    public String getProtcompWs() {
-        return protcompWs;
-    }
-
-    @JsonProperty("protcomp_ws")
-    public void setProtcompWs(String protcompWs) {
-        this.protcompWs = protcompWs;
-    }
-
-    public CompareGenomesParams withProtcompWs(String protcompWs) {
-        this.protcompWs = protcompWs;
+    public CompareGenomesParams withProtcompRef(String protcompRef) {
+        this.protcompRef = protcompRef;
         return this;
     }
 
@@ -144,7 +108,7 @@ public class CompareGenomesParams {
 
     @Override
     public String toString() {
-        return ((((((((((((((("CompareGenomesParams"+" [pangenomeId=")+ pangenomeId)+", pangenomeWs=")+ pangenomeWs)+", protcompId=")+ protcompId)+", protcompWs=")+ protcompWs)+", outputId=")+ outputId)+", workspace=")+ workspace)+", additionalProperties=")+ additionalProperties)+"]");
+        return ((((((((((("CompareGenomesParams"+" [pangenomeRef=")+ pangenomeRef)+", protcompRef=")+ protcompRef)+", outputId=")+ outputId)+", workspace=")+ workspace)+", additionalProperties=")+ additionalProperties)+"]");
     }
 
 }

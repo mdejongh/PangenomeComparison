@@ -215,10 +215,8 @@ BuildPangenomeResult is a reference to a hash where the following keys are defin
 $params is a PangenomeComparison.CompareGenomesParams
 $return is a PangenomeComparison.CompareGenomesResult
 CompareGenomesParams is a reference to a hash where the following keys are defined:
-	pangenome_id has a value which is a string
-	pangenome_ws has a value which is a string
-	protcomp_id has a value which is a string
-	protcomp_ws has a value which is a string
+	pangenome_ref has a value which is a string
+	protcomp_ref has a value which is a string
 	output_id has a value which is a string
 	workspace has a value which is a string
 CompareGenomesResult is a reference to a hash where the following keys are defined:
@@ -235,10 +233,8 @@ CompareGenomesResult is a reference to a hash where the following keys are defin
 $params is a PangenomeComparison.CompareGenomesParams
 $return is a PangenomeComparison.CompareGenomesResult
 CompareGenomesParams is a reference to a hash where the following keys are defined:
-	pangenome_id has a value which is a string
-	pangenome_ws has a value which is a string
-	protcomp_id has a value which is a string
-	protcomp_ws has a value which is a string
+	pangenome_ref has a value which is a string
+	protcomp_ref has a value which is a string
 	output_id has a value which is a string
 	workspace has a value which is a string
 CompareGenomesResult is a reference to a hash where the following keys are defined:
@@ -443,10 +439,8 @@ pg_ref has a value which is a string
 
 <pre>
 a reference to a hash where the following keys are defined:
-pangenome_id has a value which is a string
-pangenome_ws has a value which is a string
-protcomp_id has a value which is a string
-protcomp_ws has a value which is a string
+pangenome_ref has a value which is a string
+protcomp_ref has a value which is a string
 output_id has a value which is a string
 workspace has a value which is a string
 
@@ -457,10 +451,8 @@ workspace has a value which is a string
 =begin text
 
 a reference to a hash where the following keys are defined:
-pangenome_id has a value which is a string
-pangenome_ws has a value which is a string
-protcomp_id has a value which is a string
-protcomp_ws has a value which is a string
+pangenome_ref has a value which is a string
+protcomp_ref has a value which is a string
 output_id has a value which is a string
 workspace has a value which is a string
 
