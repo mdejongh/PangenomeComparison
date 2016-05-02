@@ -147,11 +147,17 @@ sub build_pangenome
 	die "Error loading genomeset from workspace:\n".$@;
     }
     if (defined $input->{genome_refs}) {
+	eval {
+	    my @refs;
 	    foreach my $ref (@{$input->{genome_refs}}) {
-		next if ! defined $ref;
-		push @genomes, $ref;
-		push @{$provenance->[0]->{'input_ws_objects'}}, $ref;
+		push @refs, {ref=>$ref};
 	    }
+	    my $genomeset_full=$wsClient->get_object_info_new({objects=>\@refs, includeMetadata=>1});
+	    map { push @genomes, $_->[6]."/".$_->[0]."/".$_->[4] } @$genomeset_full;
+	};
+    }
+    if ($@) {
+	die "Error loading genomes from workspace:\n".$@;
     }
 
     my $orthlist = [];
@@ -424,6 +430,453 @@ sub compare_genomes
     my $ctx = $PangenomeComparison::PangenomeComparisonServer::CallContext;
     my($return);
     #BEGIN compare_genomes
+    my $token=$ctx->token;
+    my $wsClient=Bio::KBase::workspace::Client->new($self->{'workspace-url'},token=>$token);
+    my $provenance = [{}];
+    $provenance = $ctx->provenance if defined $ctx->provenance;
+
+    sub function_to_roles{
+	my $function = shift;
+	my $array = [split(/\#/,$function)];
+	$function = shift(@{$array});
+	$function =~ s/\s+$//;
+	my @roles = split(/\s*;\s+|\s+[\@\/]\s+/,$function);
+	return \@roles;
+    }
+
+    sub simple_role_reaction_hash {
+	my $template = shift;
+	my $map = shift;
+	my $biochemistry;
+	eval {
+	    $biochemistry=$wsClient->get_objects([{ref=>$template->{biochemistry_ref}}])->[0]{data};
+	};
+	if ($@) {
+	    die "Error loading biochemistry from workspace:\n".$@;
+	}
+	my $rxns = $template->{templateReactions};
+	my $rolehash = {};
+	for (my $i=0;$i<@{$rxns};$i++) {
+	    my $rxn = $rxns->[$i];
+	    my $cpx_refs = $rxn->{complex_refs};
+	    foreach my $cpx_ref (@$cpx_refs) {
+		my $cpx;
+		foreach my $cpxH (@{$map->{complexes}}) {
+		    if (index($cpx_ref, $cpxH->{id}) >= 0) {
+			$cpx = $cpxH;
+			last;
+		    }
+		}
+		if (! defined $cpx) {
+		    die("Couldn't find role for $cpx_ref\n");
+		}
+		my $roles = $cpx->{complexroles};
+		for (my $k=0; $k < @{$roles}; $k++) {
+		    my $role_ref = $roles->[$k]->{role_ref};
+		    my $role;
+		    foreach my $roleH (@{$map->{roles}}) {
+			if (index($role_ref, $roleH->{id}) >= 0) {
+			    $role = $roleH;
+			    last;
+			}
+		    }
+		    if (! defined $role) {
+			die("Couldn't find role for $role_ref\n");
+		    }
+		    my $reaction;
+		    foreach my $rxnH (@{$biochemistry->{reactions}}) {
+			if (index($rxn->{reaction_ref}, $rxnH->{id}) >= 0) {
+			    $reaction = $rxnH;
+			    last;
+			}
+		    }
+		    if (! defined $reaction) {
+			die("Couldn't find reaction for $rxn->{reaction_ref}\n");
+		    }
+		    my $compartment;
+		    foreach my $cptH (@{$biochemistry->{compartments}}) {
+			if (index($rxn->{compartment_ref}, $cptH->{id}) >= 0) {
+			    $compartment = $cptH;
+			    last;
+			}
+		    }
+		    if (! defined $compartment) {
+			die("Couldn't find compartment for $rxn->{compartment_ref}\n");
+		    }
+		    $rolehash->{$role->{name}}->{$reaction->{id}}->{$compartment->{id}} = [$rxn->{direction},&createEquation($reaction, $biochemistry)];
+		}
+	    }
+	}
+	return $rolehash;
+    }
+
+    sub createEquation {
+	my ($rxn, $bio) = @_;
+	my $rgt = $rxn->{reagents};
+	my $rgtHash;
+	for (my $i=0; $i < @{$rgt}; $i++) {
+	    my $id = (split "/", $rgt->[$i]->{compound_ref})[-1];
+	    if (!defined($rgtHash->{$id}->{(split "/", $rgt->[$i]->{compartment_ref})[-1]})) {
+		$rgtHash->{$id}->{(split "/", $rgt->[$i]->{compartment_ref})[-1]} = 0;
+	    }
+	    $rgtHash->{$id}->{(split "/", $rgt->[$i]->{compartment_ref})[-1]} += $rgt->[$i]->{coefficient};
+	}
+	my @reactcode = ();
+	my @productcode = ();
+	my $sign = " <=> ";
+	$sign = " => " if $rxn->{direction} eq ">";
+	$sign = " <= " if $rxn->{direction} eq "<";
+
+	my %FoundComps=();
+	my $CompCount=0;
+
+	my $sortedCpd = [sort(keys(%{$rgtHash}))];
+	for (my $i=0; $i < @{$sortedCpd}; $i++) {
+
+	    #Cpds sorted on original modelseed identifiers
+	    #But representative strings collected here (if not 'id')
+	    my $printId=$sortedCpd->[$i];
+
+	    my $comps = [sort(keys(%{$rgtHash->{$sortedCpd->[$i]}}))];
+	    for (my $j=0; $j < @{$comps}; $j++) {
+		my $compartment = $comps->[$j];
+		$compartment = "[".$compartment."]";
+
+		if ($rgtHash->{$sortedCpd->[$i]}->{$comps->[$j]} < 0) {
+		    my $coef = -1*$rgtHash->{$sortedCpd->[$i]}->{$comps->[$j]};
+		    my $reactcode = "(".$coef.") ".$printId.$compartment;
+		    push(@reactcode,$reactcode);
+		    
+		} elsif ($rgtHash->{$sortedCpd->[$i]}->{$comps->[$j]} > 0) {
+		    my $coef = $rgtHash->{$sortedCpd->[$i]}->{$comps->[$j]};
+
+		    my $productcode .= "(".$coef.") ".$printId.$compartment;
+		    push(@productcode, $productcode);
+		} 
+	    }
+	}
+
+	my $reaction_string = join(" + ",@reactcode).$sign.join(" + ",@productcode);
+
+	return $reaction_string;
+    }
+
+    my $orthos;
+    my $members = {};
+    my $genome_refs;
+    my $gc = {
+	genomes => [],
+	families => [],
+	functions => [],
+	core_functions => 0,
+	core_families => 0
+    };
+
+    if (!exists $params->{'output_id'}) {
+        die "Parameter output_id is not set in input arguments";
+    }
+    my $id = $params->{'output_id'};
+    if (!exists $params->{'workspace'}) {
+        die "Parameter workspace is not set in input arguments";
+    }
+    my $workspace_name=$params->{'workspace'};
+
+    if (defined($params->{pangenome_ref})) {
+	my $pg;
+	eval {
+	    $pg=$wsClient->get_objects([{ref=>$params->{pangenome_ref}}])->[0]{data};
+	    push @{$provenance->[0]->{'input_ws_objects'}}, $params->{pangenome_ref};
+	};
+	if ($@) {
+	    die "Error loading pangenome from workspace:\n".$@;
+	}
+	$gc->{pangenome_ref} = $params->{pangenome_ref};
+	$genome_refs = $pg->{genome_refs};
+	my $refhash;
+	for (my $i=0; $i < @{$genome_refs}; $i++) {
+	    if (!defined($refhash->{$genome_refs->[$i]})) {
+		$refhash->{$genome_refs->[$i]} = 1;
+	    }
+	}
+	my $orthofam = $pg->{orthologs};
+	for (my $i=0; $i < @{$orthofam}; $i++) {
+	    for (my $j=0; $j < @{$orthofam->[$i]->{orthologs}}; $j++) {
+		$orthos->{$orthofam->[$i]->{id}}->{$orthofam->[$i]->{orthologs}->[$j]->[2]}->{$orthofam->[$i]->{orthologs}->[$j]->[0]} = $orthofam->[$i]->{orthologs}->[$j]->[1];
+		$members->{$orthofam->[$i]->{orthologs}->[$j]->[2]}->{$orthofam->[$i]->{orthologs}->[$j]->[0]} = $orthofam->[$i]->{id};
+	    }
+	}
+    } elsif (defined($params->{protcomp_ref})) {
+	my $pc;
+	eval {
+	    $pc=$wsClient->get_objects([{ref=>$params->{protcomp_ref}}])->[0]{data};
+	    push @{$provenance->[0]->{'input_ws_objects'}}, $params->{protcomp_ref};
+	};
+	if ($@) {
+	    die "Error loading protcomp from workspace:\n".$@;
+	}
+	$gc->{protcomp_ref} = $params->{protcomp_ref};
+	$genome_refs = [$pc->{genome1ref},$pc->{genome2ref}];
+	my $plist = $pc->{proteome1names};
+	my $oplist = $pc->{proteome2names};
+	my $d = $pc->{data1};
+	for (my $i=0; $i < @{$plist}; $i++) {
+	    my $family;
+	    my $sorthos;
+	    for (my $j=0; $j < @{$d->[$i]}; $j++) {
+		if ($d->[$i]->[$j]->[2] >= 90) {
+		    my $gene = $oplist->[$d->[$i]->[$j]->[0]];
+		    $sorthos->{$gene} = $d->[$i]->[$j]->[1];
+		    if (defined($members->{$genome_refs->[1]}->{$gene})) {
+			$family = $members->{$genome_refs->[1]}->{$gene};
+		    }
+		}
+	    }
+	    if (!defined($family)) {
+		$family = $plist->[$i];	
+	    }
+	    $orthos->{$family}->{$genome_refs->[0]}->{$plist->[$i]} = 100;
+	    $members->{$genome_refs->[0]}->{$plist->[$i]} = $family;
+	    foreach my $gene (keys(%{$sorthos})) {
+		$members->{$genome_refs->[1]}->{$gene} = $family;
+		$orthos->{$family}->{$genome_refs->[1]}->{$gene} = $sorthos->{$gene};
+	    }
+	}
+	$d = $pc->{data2};
+	for (my $i=0; $i < @{$oplist}; $i++) {
+	    if (!defined($members->{$genome_refs->[1]}->{$oplist->[$i]})) {
+		my $family;
+		my $sorthos;
+		for (my $j=0; $j < @{$d->[$i]}; $j++) {
+		    if ($d->[$i]->[$j]->[2] >= 90) {
+			my $gene = $plist->[$d->[$i]->[$j]->[0]];
+			$sorthos->{$gene} = $d->[$i]->[$j]->[1];
+			if (defined($members->{$genome_refs->[0]}->{$gene})) {
+			    $family = $members->{$genome_refs->[0]}->{$gene};
+			}
+		    }
+		}
+		if (!defined($family)) {
+		    $family = $oplist->[$i];	
+		}
+		$orthos->{$family}->{$genome_refs->[1]}->{$oplist->[$i]} = 100;
+		$members->{$genome_refs->[1]}->{$oplist->[$i]} = $family;
+		foreach my $gene (keys(%{$sorthos})) {
+		    $members->{$genome_refs->[0]}->{$gene} = $family;
+		    $orthos->{$family}->{$genome_refs->[0]}->{$gene} = $sorthos->{$gene};
+		}
+	    }
+	}
+    } else {
+	die("Must provide either a pangenome or proteome comparison as input!");
+    }
+
+    $gc->{id} = $params->{workspace}."/".$params->{output_id};
+    $gc->{name} = $params->{output_id};
+    #Retrieving subsystem data from mapping
+    my $template;
+    eval {
+	$template=$wsClient->get_objects([{ref=>"KBaseTemplateModels/GramNegModelTemplate"}])->[0]{data};
+    };
+    if ($@) {
+	die "Error loading template from workspace:\n".$@;
+    }
+    my $map;
+    eval {
+	$map=$wsClient->get_objects([{ref=>$template->{mapping_ref}}])->[0]{data};
+    };
+    if ($@) {
+	die "Error loading map from workspace:\n".$@;
+    }
+    my $SubsysRoles = {};
+    my $GenomeHash = {};
+    my $FunctionHash = {};
+    my $rolesets = $map->{subsystems};
+    for (my $i=0; $i < @{$rolesets}; $i++) {
+	my $roleset = $rolesets->[$i];
+	my $role_refs = $roleset->{role_refs};
+	foreach my $role_ref (@{$role_refs}) {
+	    my $role;
+	    foreach my $roleH (@{$map->{roles}}) {
+		if (index($role_ref, $roleH->{id}) >= 0) {
+		    $role = $roleH;
+		    last;
+		}
+	    }
+	    if (! defined $role) {
+		die("Couldn't find role for $role_ref\n");
+	    }
+	    $SubsysRoles->{$role->{name}} = $roleset;
+	}
+    }
+
+    #Associating roles and reactions
+    my $rolerxns = &simple_role_reaction_hash($template, $map);
+    #Building genome comparison object
+    my $famkeys = [keys(%{$orthos})];
+    my $famind = {};
+    for (my $i=0; $i < @{$famkeys}; $i++) {
+	$famind->{$famkeys->[$i]} = $i;
+    }
+    my $funcind = {};
+    my $funccount = 0;
+    my $functions;
+    my $totgenomes = @{$genome_refs};
+    my $genomehash;
+    my $families = {};
+    my $i = 0;
+    foreach my $genome_ref (@{$genome_refs}) {
+	my $g;
+	eval {
+	    $g=$wsClient->get_objects([{ref=>$genome_ref}])->[0]{data};
+	};
+	if ($@) {
+	    die "Error loading genome from workspace:\n".$@;
+	}
+	my $ftrs = $g->{features};
+	my $genfam = {};
+	my $genfun = {};
+	for (my $j=0; $j < @{$ftrs}; $j++) {
+	    my $ftr = $ftrs->[$j];
+	    my $fam = $members->{$genome_ref}->{$ftr->{id}};
+	    my $score = $orthos->{$fam}->{$genome_ref}->{$ftr->{id}};
+	    my $roles = &function_to_roles($ftr->{function});
+	    my $funind = [];
+	    for (my $k=0; $k < @{$roles}; $k++) {
+		if (!defined($functions->{$roles->[$k]})) {
+		    $functions->{$roles->[$k]} = {
+			core => 0,
+			genome_features => {},
+			id => $roles->[$k],
+			reactions => [],
+			subsystem => "none",
+			primclass => "none",
+			subclass => "none",
+			number_genomes => 0,
+			fraction_genomes => 0,
+			fraction_consistent_families => 0,
+			most_consistent_family => "none",
+		    };
+		    $funcind->{$roles->[$k]} = $funccount;
+		    $funccount++;
+		    if (defined($SubsysRoles->{$roles->[$k]})) {
+			$functions->{$roles->[$k]}->{subsystem} = $SubsysRoles->{$roles->[$k]}->{name};
+			$functions->{$roles->[$k]}->{primclass} = $SubsysRoles->{$roles->[$k]}->{class};
+			$functions->{$roles->[$k]}->{subclass} = $SubsysRoles->{$roles->[$k]}->{subclass};
+		    }
+		    if (defined($rolerxns->{$roles->[$k]})) {
+			foreach my $rxn (keys(%{$rolerxns->{$roles->[$k]}})) {
+			    foreach my $comp (keys(%{$rolerxns->{$roles->[$k]}->{$rxn}})) {
+				push(@{$functions->{$roles->[$k]}->{reactions}},[$rxn."_".$comp,$rolerxns->{$roles->[$k]}->{$rxn}->{$comp}->[1]]);
+			    }
+			}
+		    }
+		}
+		push(@{$funind},$funcind->{$roles->[$k]});
+		push(@{$functions->{$roles->[$k]}->{genome_features}->{$genome_ref}},[$ftr->{id},$famind->{$fam},$score]);
+		$genfun->{$roles->[$k]} = 1;
+	    }
+	    if (!defined($families->{$fam})) {
+		$families->{$fam} = {
+		    core => 0,
+		    genome_features => {},
+		    id => $fam,
+		    type => $ftr->{type},
+		    protein_translation => "none",
+		    number_genomes => 0,
+		    fraction_genomes => 0,
+		    fraction_consistent_annotations => 0,
+		    most_consistent_role => "none",
+		};
+	    }
+	    $genfam->{$fam} = 1;
+	    push(@{$families->{$fam}->{genome_features}->{$genome_ref}},[$ftr->{id},$funind,$score]);
+	}
+	my $taxonomy = "Unknown";
+	if (defined($g->{taxonomy})) {
+	    $taxonomy = $g->{taxonomy};
+	}
+	my $numftrs = @{$ftrs};
+	my $numfams = keys(%{$genfam});
+	my $numfuns = keys(%{$genfun});
+	$genomehash->{$genome_ref} = {
+	    id => $genome_ref,
+	    name => $g->{scientific_name},
+	    taxonomy => $taxonomy,
+	    genome_ref => $genome_ref,
+	    genome_similarity => {},
+	    features => $numftrs,
+	    families => $numfams+0,
+	    functions => $numfuns+0,
+	};
+	$gc->{genomes}->[$i] = $genomehash->{$genome_ref};
+	$i++;
+    }
+    foreach my $function (keys(%{$funcind})) {
+	foreach my $genone (keys(%{$functions->{$function}->{genome_features}})) {
+	    foreach my $gentwo (keys(%{$functions->{$function}->{genome_features}})) {
+		if ($genone ne $gentwo) {
+		    if (!defined($genomehash->{$genone}->{genome_similarity}->{$gentwo})) {
+			$genomehash->{$genone}->{genome_similarity}->{$gentwo} = [0,0];
+		    }
+		    $genomehash->{$genone}->{genome_similarity}->{$gentwo}->[1]++;
+		}
+	    }
+	}
+	$functions->{$function}->{number_genomes} = keys(%{$functions->{$function}->{genome_features}});
+	$functions->{$function}->{fraction_genomes} = $functions->{$function}->{number_genomes}/$totgenomes;
+	if ($functions->{$function}->{fraction_genomes} == 1) {
+	    $functions->{$function}->{core} = 1;
+	    $gc->{core_functions}++;
+	}
+	$gc->{functions}->[$funcind->{$function}] = $functions->{$function};
+    }
+    foreach my $fam (keys(%{$famind})) {
+	foreach my $genone (keys(%{$families->{$fam}->{genome_features}})) {
+	    foreach my $gentwo (keys(%{$families->{$fam}->{genome_features}})) {
+		if ($genone ne $gentwo) {
+		    if (!defined($genomehash->{$genone}->{genome_similarity}->{$gentwo})) {
+			$genomehash->{$genone}->{genome_similarity}->{$gentwo} = [0,0];
+		    }
+		    $genomehash->{$genone}->{genome_similarity}->{$gentwo}->[0]++;
+		}
+	    }
+	}
+	$families->{$fam}->{number_genomes} = keys(%{$families->{$fam}->{genome_features}});
+	$families->{$fam}->{fraction_genomes} = $families->{$fam}->{number_genomes}/$totgenomes;
+	if ($families->{$fam}->{fraction_genomes} == 1) {
+	    $families->{$fam}->{core} = 1;
+	    $gc->{core_families}++;
+	}
+	$gc->{families}->[$famind->{$fam}] = $families->{$fam};
+    }
+
+    print STDERR &Dumper($gc);
+
+    my $gc_metadata = $wsClient->save_objects({
+	'workspace' => $workspace_name,
+	'objects' => [{
+	    type => 'KBaseGenomes.GenomeComparison',
+	    name => $id,
+	    data => $gc
+		      }]});
+
+    my $report = "GenomeComparison saved to $workspace_name/$id\n";
+    my $reportObj = { "objects_created"=>[{'ref'=>"$workspace_name/$id", "description"=>"GenomeCompmarison"}],
+		      "text_message"=>$report };
+    my $reportName = "genomecomparison_report_${id}";
+
+    my $metadata = $wsClient->save_objects({
+	'id' => $gc_metadata->[0]->[6],
+	'objects' => [{
+	    type => 'KBaseReport.Report',
+	    data => $reportObj,
+	    name => $reportName,
+	    'meta' => {},
+	    'hidden' => 1,
+	    'provenance' => $provenance
+		      }]});
+
+    $return = { 'report_name'=>$reportName, 'report_ref', $metadata->[0]->[6]."/".$metadata->[0]->[0]."/".$metadata->[0]->[4], 'cg_ref' => $workspace_name."/".$id};
     #END compare_genomes
     my @_bad_returns;
     (ref($return) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
