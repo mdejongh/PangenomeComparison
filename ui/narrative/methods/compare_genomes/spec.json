@@ -39,7 +39,8 @@
       "input_mapping" : [
         {
           "input_parameter": "input_pangenome",
-          "target_property": "pangenome_id"
+          "target_property": "pangenome_ref",
+	  "target_type_transform": "ref"
         },
         {
           "input_parameter": "output_gencomp",
