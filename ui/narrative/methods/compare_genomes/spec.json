@@ -74,7 +74,7 @@
 		},
         {
           "input_parameter": "output_gencomp",
-          "target_property": "name"
+          "target_property": "id"
         },
         {
           "narrative_system_variable": "workspace",
