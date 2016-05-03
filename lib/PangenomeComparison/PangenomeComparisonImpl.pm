@@ -141,12 +141,12 @@ sub build_pangenome
     }
     my $workspace_name=$input->{'workspace'};
 
-    my @genomes;
+    my %genomeH;
     if (defined $input->{genomeset_ref}) {
 	eval {
 	    my $genomeset=$wsClient->get_objects([{ref=>$input->{genomeset_ref}}])->[0]{data};
 	    push @{$provenance->[0]->{'input_ws_objects'}}, $input->{genomeset_ref};
-	    map { push @genomes, $_->{ref} } values %{$genomeset->{elements}};
+	    map { $genomeH{$_->{ref}} = 1 } values %{$genomeset->{elements}};
 	};
     }
     if ($@) {
@@ -161,13 +161,15 @@ sub build_pangenome
 	    }
 	    if (@refs > 0) {
 		my $genomeset_full=$wsClient->get_object_info_new({objects=>\@refs, includeMetadata=>1});
-		map { push @genomes, $_->[6]."/".$_->[0]."/".$_->[4] } @$genomeset_full;
+		map { $genomeH{ $_->[6]."/".$_->[0]."/".$_->[4] } = 1 } @$genomeset_full;
 	    }
 	};
     }
     if ($@) {
 	die "Error loading genomes from workspace:\n".$@;
     }
+
+    my @genomes = keys %genomeH;
 
     my $orthlist = [];
     my $okdb;
