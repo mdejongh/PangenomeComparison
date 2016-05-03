@@ -125,6 +125,12 @@ sub build_pangenome
     my $wsClient=Bio::KBase::workspace::Client->new($self->{'workspace-url'},token=>$token);
     my $provenance = [{}];
     $provenance = $ctx->provenance if defined $ctx->provenance;
+    $provenance->[0]->{service} = "PangenomeComparison";
+    $provenance->[0]->{method} = "build_pangenome";
+    $provenance->[0]->{method} = "build_pangenome";
+#    $provenance->[0]->{time} = localtime();
+    $provenance->[0]->{method_params} = [$input];
+    $provenance->[0]->{service_ver} = '0.0.1';
 
     if (!exists $input->{'output_id'}) {
         die "Parameter output_id is not set in input arguments";
@@ -175,17 +181,18 @@ sub build_pangenome
 
     print STDERR "Processing ", scalar @genomes, " genomes\n";
     my $i = 0;
-    foreach my $currgenome_ref (@genomes) {
+    foreach my $currgenome_name (@genomes) {
+	my $currgenome_ref;
     	my $gkdb = {};
     	my $genepairs;
     	my $bestorthos = [];
 	my $currgenome = undef;
 	eval {
 	    print STDERR "Getting object from workspace with ref $currgenome_ref\n";
-	    my $obj = $wsClient->get_objects([{ref=>$currgenome_ref}])->[0];
+	    my $obj = $wsClient->get_objects([{ref=>$currgenome_name}])->[0];
 	    $currgenome_ref = $obj->{info}->[6]."/".$obj->{info}->[0]."/".$obj->{info}->[4]; # widget needs this kind of ref
 	    $currgenome=$obj->{data};
-	    push @{$provenance->[0]->{'input_ws_objects'}}, $currgenome_ref;
+	    push @{$provenance->[0]->{'input_ws_objects'}}, $currgenome_name;
 	};
 	if ($@) {
 	    die "Error loading genome from workspace:\n".$@;
@@ -433,6 +440,11 @@ sub compare_genomes
     my $wsClient=Bio::KBase::workspace::Client->new($self->{'workspace-url'},token=>$token);
     my $provenance = [{}];
     $provenance = $ctx->provenance if defined $ctx->provenance;
+    $provenance->[0]->{service} = "PangenomeComparison";
+    $provenance->[0]->{method} = "compare_genomes";
+#    $provenance->[0]->{time} = localtime();
+    $provenance->[0]->{method_params} = [$params];
+    $provenance->[0]->{service_ver} = '0.0.1';
 
     sub function_to_roles{
 	my $function = shift;
