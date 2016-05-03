@@ -127,7 +127,6 @@ sub build_pangenome
     $provenance = $ctx->provenance if defined $ctx->provenance;
     $provenance->[0]->{service} = "PangenomeComparison";
     $provenance->[0]->{method} = "build_pangenome";
-    $provenance->[0]->{method} = "build_pangenome";
 #    $provenance->[0]->{time} = localtime();
     $provenance->[0]->{method_params} = [$input];
     $provenance->[0]->{service_ver} = '0.0.1';
