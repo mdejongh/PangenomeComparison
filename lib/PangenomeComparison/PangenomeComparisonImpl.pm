@@ -334,7 +334,8 @@ sub build_pangenome
 	'objects' => [{
 	    type => 'KBaseGenomes.Pangenome',
 	    name => $id,
-	    data => $pangenome
+	    data => $pangenome,
+	    'provenance' => $provenance
 		      }]});
 
     my $report = "Pangenome saved to $workspace_name/$id\n";
@@ -868,7 +869,8 @@ sub compare_genomes
 	'objects' => [{
 	    type => 'KBaseGenomes.GenomeComparison',
 	    name => $id,
-	    data => $gc
+	    data => $gc,
+	    'provenance' => $provenance
 		      }]});
 
     my $report = "GenomeComparison saved to $workspace_name/$id\n";
