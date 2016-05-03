@@ -125,11 +125,6 @@ sub build_pangenome
     my $wsClient=Bio::KBase::workspace::Client->new($self->{'workspace-url'},token=>$token);
     my $provenance = [{}];
     $provenance = $ctx->provenance if defined $ctx->provenance;
-    $provenance->[0]->{service} = "PangenomeComparison";
-    $provenance->[0]->{method} = "build_pangenome";
-#    $provenance->[0]->{time} = localtime();
-    $provenance->[0]->{method_params} = [$input];
-    $provenance->[0]->{service_ver} = '0.0.1';
 
     if (!exists $input->{'output_id'}) {
         die "Parameter output_id is not set in input arguments";
@@ -442,11 +437,6 @@ sub compare_genomes
     my $wsClient=Bio::KBase::workspace::Client->new($self->{'workspace-url'},token=>$token);
     my $provenance = [{}];
     $provenance = $ctx->provenance if defined $ctx->provenance;
-    $provenance->[0]->{service} = "PangenomeComparison";
-    $provenance->[0]->{method} = "compare_genomes";
-#    $provenance->[0]->{time} = localtime();
-    $provenance->[0]->{method_params} = [$params];
-    $provenance->[0]->{service_ver} = '0.0.1';
 
     sub function_to_roles{
 	my $function = shift;
