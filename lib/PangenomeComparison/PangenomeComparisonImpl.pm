@@ -223,7 +223,7 @@ sub build_pangenome
 	    				}
     				}
     				if (defined($gkdb->{$kmer}) && !defined($gkdb->{$kmer}->{-1})) {
-    					if (keys(%{$gkdb->{$kmer}}) >= 5) {
+    					if (keys(%{$gkdb->{$kmer}}) >= 500000) {
     						my $keylist = [keys(%{$gkdb->{$kmer}})];
     						for (my $m=0; $m < 4; $m++) {
     							for (my $n=($m+1); $n < 5; $n++) {
